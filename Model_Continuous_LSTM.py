@@ -7,11 +7,12 @@ import torch.nn as nn
 
 class Model_Continuous_LSTM(nn.Module):
     
-    def __init__(self, input_size, output_size, hidden_dim, n_layers, dropout):
+    def __init__(self, input_size, output_size, hidden_dim, n_layers, dropout, device):
         super(Model_Continuous_LSTM, self).__init__()
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
         self.step_by_step = False
+        self.device = device
 
         self.rnn = nn.LSTM(input_size, hidden_dim, n_layers, batch_first=True, dropout=dropout).to(device)
         self.fc = nn.Linear(hidden_dim, output_size).to(device)
@@ -35,6 +36,6 @@ class Model_Continuous_LSTM(nn.Module):
         return out
 
     def init_hidden(self, n_layers, dim, batch_size):
-        h0 = torch.zeros(n_layers, batch_size, dim).to(device)
-        c0 = torch.zeros(n_layers, batch_size, dim).to(device)
+        h0 = torch.zeros(n_layers, batch_size, dim).to(self.device)
+        c0 = torch.zeros(n_layers, batch_size, dim).to(self.device)
         return (h0, c0)

@@ -65,21 +65,29 @@ class RNNBinaryClassifier:
         
         return metrics, preds
 
-    def plot_signal_eff_vs_noise_red(self):
+    def calculate_signal_eff_noise_red(self):
         # Calculation of signal efficiency vs noise reduction, as defined in the Arianna paper
         nr = []
         ns = []
         NN = np.sum(self.y_true == False)  # Number of noise events
         NS = np.sum(self.y_true == True)   # Number of signal events
         print("Total signal events:", NS, "Total noise events:", NN)
-        r_set = np.linspace(0.01, 0.99, 40)
+        r_set = np.linspace(0.001, 0.999, 100)
         for r_value in r_set:
           y_pred = self.sigmoids > r_value
           correct_noise_events = np.sum((self.y_true == y_pred) & (self.y_true == False))
           correct_signal_events = np.sum((self.y_true == y_pred) & (self.y_true == True))
-          #print(r_value, correct_noise_events, correct_signal_events)
-          nr.append(np.log10(1.0/(1.0 - correct_noise_events/NN)))
+          if correct_noise_events < NN:
+              cne_ratio = np.log10(1.0/(1.0 - correct_noise_events/NN))
+          else:
+              cne_ratio = np.log10(NN)
+          nr.append(cne_ratio)
           ns.append(correct_signal_events/NS)
+        
+        return ns, nr 
+    
+    def plot_signal_eff_vs_noise_red(self):
+        ns, nr = self.calculate_signal_eff_noise_red()
         plt.scatter(ns, nr)
         plt.xlabel("Signal efficiency")
         plt.ylabel("Noise reduction (log10)")
