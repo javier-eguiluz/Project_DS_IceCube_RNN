@@ -16,15 +16,20 @@ class BinaryClassificationPreprocessor:
       self.scaler = StandardScaler()  # We use standardization as the default option
 
   def train_val_test_split(self, X, y, val_ratio, test_ratio):
-      X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_ratio, shuffle=True)
-      X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=len(X)*val_ratio/len(X_train), shuffle=True)
-
-      return X_train, X_val, X_test, y_train, y_val, y_test
+      print("Before first split")
+      X_train_idx, X_test_idx, y_train, y_test = train_test_split(list(range(len(X))), y, test_size=test_ratio, shuffle=True)
+      #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_ratio, shuffle=True)
+      print("Before second split")
+      X_train_idx, X_val_idx, y_train, y_val = train_test_split(X_train_idx, y_train, test_size=len(X)*val_ratio/len(X_train_idx), shuffle=True)
+      print("After second split")
+      return X[X_train_idx], X[X_val_idx], X[X_test_idx], y_train, y_val, y_test
 
   def standardize(self, X):
       # Transform all values in each row of X according to the (already fitted) self.scaler
       # S is the length of each time series (which is 1 when we only have one long series in X)
       return self.scaler.transform(X.ravel().reshape(-1,1)).reshape(X.shape)
+        
+      #return X / 0.02  # Simpler version...
   
   def create_tensor_datasets(self, X_train, X_val, X_test, y_train, y_val, y_test):
       train_input = torch.Tensor(X_train)
@@ -38,12 +43,21 @@ class BinaryClassificationPreprocessor:
   
   def split_and_transform(self, X, y, val_ratio=0.2, test_ratio=0.2):
       
-      (X_train, X_val, X_test, y_train, y_val, y_test) = self.train_val_test_split(X, y, val_ratio, test_ratio)
+      X_train_idx, X_test_idx, y_train, y_test = train_test_split(list(range(len(X))), y, test_size=test_ratio, shuffle=True)
+      X_train_idx, X_val_idx, y_train, y_val = train_test_split(X_train_idx, y_train, test_size=len(X)*val_ratio/len(X_train_idx), shuffle=True)
 
+      print("Before fit")
+      X_train = X[X_train_idx]
       self.scaler.fit_transform(X_train.ravel().reshape(-1,1))  # Only fit on the train set
-      X_train_std = self.standardize(X_train)
-      X_val_std = self.standardize(X_val)
-      X_test_std = self.standardize(X_test)
+      print("After fit transform")
+      X_train = self.standardize(X_train)
+      print("1")
+      X_val = X[X_val_idx]
+      X_val = self.standardize(X_val)
+      print("2")
+      X_test = X[X_test_idx]
+      X_test = self.standardize(X_test)
+      print("After scaling")
       if len(y_train.shape) == 1:                # If y only contains one label for each time series (e.g., when using load_data_by_class)
           y_train = y_train.reshape(-1, 1)       # We need to reshape to get y in the same form as X
           y_val = y_val.reshape(-1, 1)
@@ -54,12 +68,12 @@ class BinaryClassificationPreprocessor:
           y_test = y_test[...,np.newaxis]
       
       print("Preprocessed datasets:")
-      print(f"Train: {X_train_std.shape}, range [{np.min(X_train_std)}, {np.max(X_train_std)}]")
-      print(f"Validation: {X_val_std.shape}, range [{np.min(X_val_std)}, {np.max(X_val_std)}]")
-      print(f"Test: {X_test_std.shape}, range [{np.min(X_test_std)}, {np.max(X_test_std)}]")
+      print(f"Train: {X_train.shape}, range [{np.min(X_train)}, {np.max(X_train)}]")
+      print(f"Validation: {X_val.shape}, range [{np.min(X_val)}, {np.max(X_val)}]")
+      print(f"Test: {X_test.shape}, range [{np.min(X_test)}, {np.max(X_test)}]")
 
       # Finally, prepare for PyTorch usage
-      return self.create_tensor_datasets(X_train_std, X_val_std, X_test_std, y_train, y_val, y_test)
+      return self.create_tensor_datasets(X_train, X_val, X_test, y_train, y_val, y_test)
 
   def load_data_by_class(self, X, Y, val_ratio=0.2, test_ratio=0.2):
       # X should be a list of time series belonging to class 1 and Y series belonging to class 2
@@ -91,12 +105,14 @@ class BinaryClassificationPreprocessor:
       # W is the window size for RNN processing (i.e., we get one output for every W input steps)
       # X.shape[0] = length of entire sequence, X.shape[1] = # features
 
+      N_FEATURES = X.shape[1]
       N = len(X) // L       
-      X_split = np.zeros((N, X.shape[1], L))
+      X_split = np.zeros((N, N_FEATURES, L))
       y_split = np.zeros((N, L // W))
       for i in range(N):
           start = i * L
-          X_split[i,:,:] = X[start:start+L,:].reshape(1,-1)
+          for ch in range(N_FEATURES):
+              X_split[i,ch,:] = X[start:start+L,ch]
           y_split[i,:] = labels[start:start+L:W]
 
       print(X_split.shape, y_split.shape)
