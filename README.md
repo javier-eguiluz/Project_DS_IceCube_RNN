@@ -1,5 +1,7 @@
 # Project_DS_IceCube_RNN
-Methods for RNN-based detection of neutrino events and rejection of noise background signals for the IceCube collaboration
+Methods for RNN-based detection of neutrino events and rejection of noise background signals for the IceCube collaboration.
+
+Contribution: We both have contributed, grosso modo, equally to all parts of the project.
 
 Instructions
 ==========
